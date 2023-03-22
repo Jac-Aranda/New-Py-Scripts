@@ -1,0 +1,22 @@
+import requests
+
+def is_malicious(ip_address):
+    url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip_address}&maxAgeInDays=90"
+    headers = {
+        "Accept": "application/json",
+        "Key": "<your API key here>"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        if data['data']['abuseConfidenceScore'] >= 90:
+            return True
+    return False
+
+
+if __name__ == "__main__":
+    ip_address = "127.0.0.1"  # Change this to the IP address you want to check
+    if is_malicious(ip_address):
+        print(f"The IP address {ip_address} is malicious!")
+    else:
+        print(f"The IP address {ip_address} is not malicious.")
