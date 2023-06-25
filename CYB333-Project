@@ -1,1 +1,79 @@
+import requests
+import socket
+import ssl
+from urllib.parse import urlparse
+from pybloom_live import BloomFilter
 
+def check_website_security(url):
+    """Checks the security of a website by analyzing its SSL certificate."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
+
+    try:
+        response = requests.get(url, headers=headers, verify=True)
+
+        if response.ok:
+            parsed_url = urlparse(url)
+            hostname = parsed_url.netloc
+            context = ssl.create_default_context()
+            with socket.create_connection((hostname, 443)) as sock:
+                with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
+                    cert = sslsock.getpeercert()
+                    subject = dict(x[0] for x in cert['subject'])
+                    issuer = dict(x[0] for x in cert['issuer'])
+
+                    print("Website Security Report")
+                    print("Subject:", subject['commonName'])
+                    print("Issuer:", issuer['commonName'])
+                    print("Valid From:", cert['notBefore'])
+                    print("Valid Until:", cert['notAfter'])
+                    print("")
+
+                    def perform_vulnerability_scan(url):
+                        # Perform vulnerability scanning logic here
+                        # Example: Using pybloom_live to check for duplicate URLs
+                        bf = BloomFilter(capacity=1000, error_rate=0.1)
+                        if url in bf:
+                            print("Potential duplicate URL detected!")
+                        else:
+                            bf.add(url)
+                            print("No duplicate URL found.")
+
+                    # Call the vulnerability scanning function
+                    perform_vulnerability_scan(url)
+                    # Add more security checks if needed
+
+                    def check_secure_communication(url):
+                        try:
+                            response = requests.get(url, verify=True)
+                            if response.ok:
+                                cert = ssl.get_server_certificate((url, 443))
+                                x509 = ssl.load_certificate(ssl.PEM, cert)
+                                if x509:
+                                    print("Secure communication is in use.")
+                                else:
+                                    print("Insecure communication detected!")
+                            else:
+                                print("Error:", response.status_code)
+                        except requests.exceptions.RequestException as e:
+                            print("Error:", str(e))
+
+                    # Call the secure communication check function
+                    check_secure_communication(url)
+        else:
+            print("Error:", response.status_code)
+
+    except requests.exceptions.RequestException as e:
+        print("Error:", str(e))
+
+
+if __name__ == "__main__":
+    url = input("Enter website URL: ")
+    check_website_security(url)
