@@ -2,7 +2,7 @@ import requests
 import socket
 import ssl
 from urllib.parse import urlparse
-from pybloom_live import BloomFilter
+
 
 def check_website_security(url):
     """Checks the security of a website by analyzing its SSL certificate."""
@@ -17,63 +17,50 @@ def check_website_security(url):
     }
 
     try:
+        # Make an HTTP request to the provided URL
         response = requests.get(url, headers=headers, verify=True)
 
         if response.ok:
+            # Parse the URL to extract the hostname
             parsed_url = urlparse(url)
             hostname = parsed_url.netloc
+
+            # Create a default SSL context
             context = ssl.create_default_context()
-            with socket.create_connection((hostname, 443)) as sock:
-                with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
-                    cert = sslsock.getpeercert()
-                    subject = dict(x[0] for x in cert['subject'])
-                    issuer = dict(x[0] for x in cert['issuer'])
 
-                    print("Website Security Report")
-                    print("Subject:", subject['commonName'])
-                    print("Issuer:", issuer['commonName'])
-                    print("Valid From:", cert['notBefore'])
-                    print("Valid Until:", cert['notAfter'])
-                    print("")
+            try:
+                # Establish a socket connection and wrap it with SSL
+                with socket.create_connection((hostname, 443), timeout=5) as sock:
+                    with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
+                        # Get the SSL certificate and extract subject and issuer details
+                        cert = sslsock.getpeercert()
+                        subject = dict(x[0] for x in cert['subject'])
+                        issuer = dict(x[0] for x in cert['issuer'])
 
-                    def perform_vulnerability_scan(url):
-                        # Perform vulnerability scanning logic here
-                        # Example: Using pybloom_live to check for duplicate URLs
-                        bf = BloomFilter(capacity=1000, error_rate=0.1)
-                        if url in bf:
-                            print("Potential duplicate URL detected!")
-                        else:
-                            bf.add(url)
-                            print("No duplicate URL found.")
+                        # Print the website security report
+                        print("Website Security Report")
+                        print("Subject:", subject['commonName'])
+                        print("Issuer:", issuer['commonName'])
+                        print("Valid From:", cert['notBefore'])
+                        print("Valid Until:", cert['notAfter'])
+                        print("")
 
-                    # Call the vulnerability scanning function
-                    perform_vulnerability_scan(url)
-                    # Add more security checks if needed
+                        # Add more security checks if needed
 
-                    def check_secure_communication(url):
-                        try:
-                            response = requests.get(url, verify=True)
-                            if response.ok:
-                                cert = ssl.get_server_certificate((url, 443))
-                                x509 = ssl.load_certificate(ssl.PEM, cert)
-                                if x509:
-                                    print("Secure communication is in use.")
-                                else:
-                                    print("Insecure communication detected!")
-                            else:
-                                print("Error:", response.status_code)
-                        except requests.exceptions.RequestException as e:
-                            print("Error:", str(e))
+            except socket.timeout:
+                # Handle the timeout error
+                print("Error: Connection timed out. Please check the URL or try again later.")
 
-                    # Call the secure communication check function
-                    check_secure_communication(url)
         else:
+            # Print the error if the response status is not OK
             print("Error:", response.status_code)
 
     except requests.exceptions.RequestException as e:
+        # Print the error if an exception occurs during the request
         print("Error:", str(e))
 
 
 if __name__ == "__main__":
+    # Prompt the user to enter a website URL and check its security
     url = input("Enter website URL: ")
     check_website_security(url)
